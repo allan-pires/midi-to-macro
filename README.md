@@ -21,14 +21,20 @@ A Ruby script that converts MIDI files into macro commands for playing musical i
 1. Clone or download this repository
 
 2. Install dependencies:
-   ```bash
-   bundle install
-   ```
    
-   Or install manually:
+   **If Ruby is in your PATH:**
    ```bash
    gem install midilib
    ```
+   
+   **If Ruby is not in your PATH (Windows):**
+   ```bash
+   C:\Ruby34-x64\bin\gem.cmd install midilib
+   ```
+   
+   (Replace `C:\Ruby34-x64` with your Ruby installation path if different)
+   
+   Note: `optparse` is built into Ruby, so no installation is needed for it.
 
 ## Usage
 
@@ -51,7 +57,7 @@ ruby midi_to_macro.rb [options] <midi_file>
 
 Options:
 - `-o, --output FILE` - Specify output file path (default: `output_macro.mcr`)
-- `-g, --game GAME` - Target game (default: `genshin`)
+- `-g, --game GAME` - Target game: 'wwm' for Where Winds Meet or 'genshin' for Genshin Impact (default: `wwm`)
 - `-t, --tempo-multiplier FLOAT` - Speed multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)
 - `-d, --min-duration FLOAT` - Minimum note duration in seconds (default: 0.1)
 - `--transpose INTEGER` - Transpose notes by semitones (positive = higher, negative = lower)
@@ -81,19 +87,66 @@ ruby midi_to_macro.rb -d 0.15 song.mid
 
 ## Game Key Mappings
 
+### Where Winds Meet (Default)
+
+The script maps MIDI notes to three pitch ranges based on the MIDI note number:
+
+**High Pitch (C6 and above, MIDI 84+)**:
+- **C** → Q
+- **C#** → SHIFT + Q
+- **D** → W
+- **D#** → CTRL + Q
+- **E** → E
+- **F** → R
+- **F#** → SHIFT + R
+- **G** → T
+- **G#** → SHIFT + T
+- **A** → Y
+- **A#** → CTRL + Y
+- **B** → U
+
+**Medium Pitch (C5-B5, MIDI 72-83)**:
+- **C** → A
+- **C#** → SHIFT + A
+- **D** → S
+- **D#** → CTRL + S
+- **E** → D
+- **F** → F
+- **F#** → SHIFT + F
+- **G** → G
+- **G#** → SHIFT + G
+- **A** → H
+- **A#** → CTRL + H
+- **B** → J
+
+**Low Pitch (C4 and below, MIDI 0-71)**:
+- **C** → Z
+- **C#** → SHIFT + Z
+- **D** → X
+- **D#** → CTRL + X
+- **E** → C
+- **F** → V
+- **F#** → SHIFT + V
+- **G** → B
+- **G#** → SHIFT + B
+- **A** → N
+- **A#** → CTRL + N
+- **B** → M
+
+Modifier keys (SHIFT, CTRL) are combined with the base key in the macro output.
+
 ### Genshin Impact (Windsong Lyre)
 
-The script maps MIDI notes to the following keyboard layout:
+To use Genshin Impact mapping, use the `-g genshin` option:
 
 - **Highest octave (Q-U)**: Q, W, E, R, T, Y, U
 - **Middle octave (A-J)**: A, S, D, F, G, H, J
 - **Lowest octave (Z-M)**: Z, X, C, V, B, N, M
 
-Current mappings:
+Example mappings:
 - C4 (MIDI 60) → Z
 - C5 (MIDI 72) → A
 - C6 (MIDI 84) → Q
-- And so on for other notes...
 
 ## Using the Generated Macro
 

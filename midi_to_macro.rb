@@ -5,8 +5,89 @@ require 'midilib/sequence'
 require 'optparse'
 
 # MIDI to Macro Converter
-# Converts MIDI files to macro commands for games like Genshin Impact
+# Converts MIDI files to macro commands for games like Where Winds Meet and Genshin Impact
 class MidiToMacro
+  # Base note mappings for Where Winds Meet - three pitch ranges
+  # Format: [modifier, base_key] array or just base_key string
+  # Modifiers: 'SHIFT' or 'CTRL'
+  
+  # High pitch (C6 and above, MIDI notes 84+)
+  WWM_HIGH_MAP = {
+    'C'  => 'Q',
+    'C#' => ['SHIFT', 'Q'],
+    'D'  => 'W',
+    'D#' => ['CTRL', 'E'],  # Db
+    'E'  => 'E',
+    'F'  => 'R',
+    'F#' => ['SHIFT', 'R'],
+    'G'  => 'T',
+    'G#' => ['SHIFT', 'T'],
+    'A'  => 'Y',
+    'A#' => ['CTRL', 'U'],  # Ab
+    'B'  => 'U'
+  }.freeze
+
+  # Medium pitch (C5-B5, MIDI notes 72-83)
+  WWM_MEDIUM_MAP = {
+    'C'  => 'A',
+    'C#' => ['SHIFT', 'A'],
+    'D'  => 'S',
+    'D#' => ['CTRL', 'D'],  # Db
+    'E'  => 'D',
+    'F'  => 'F',
+    'F#' => ['SHIFT', 'F'],
+    'G'  => 'G',
+    'G#' => ['SHIFT', 'G'],
+    'A'  => 'H',
+    'A#' => ['CTRL', 'J'],  # Ab
+    'B'  => 'J'
+  }.freeze
+
+  # Low pitch (C4 and below, MIDI notes 0-71)
+  WWM_LOW_MAP = {
+    'C'  => 'Z',
+    'C#' => ['SHIFT', 'Z'],
+    'D'  => 'X',
+    'D#' => ['CTRL', 'D'],  # Db
+    'E'  => 'C',
+    'F'  => 'V',
+    'F#' => ['SHIFT', 'V'],
+    'G'  => 'B',
+    'G#' => ['SHIFT', 'B'],
+    'A'  => 'N',
+    'A#' => ['CTRL', 'M'],  # Ab
+    'B'  => 'M'
+  }.freeze
+
+  # Generate WWM mapping for all MIDI notes (0-127)
+  # Maps notes to appropriate pitch range based on octave
+  WWM_KEYBOARD_MAP = begin
+    mapping = {}
+    note_names = %w[C C# D D# E F F# G G# A A# B]
+    
+    (0..127).each do |midi_note|
+      note_index = midi_note % 12
+      note_name = note_names[note_index]
+      octave = midi_note / 12
+      
+      # Determine which pitch range to use based on MIDI note number
+      # C4 = 60, C5 = 72, C6 = 84
+      # Low: 0-71 (C0 to B4), Medium: 72-83 (C5 to B5), High: 84-127 (C6 and above)
+      if midi_note >= 84
+        # High pitch: C6 and above (Q-U range)
+        mapping[midi_note] = WWM_HIGH_MAP[note_name]
+      elsif midi_note >= 72
+        # Medium pitch: C5-B5 (A-J range)
+        mapping[midi_note] = WWM_MEDIUM_MAP[note_name]
+      else
+        # Low pitch: C0-B4 (Z-M range)
+        mapping[midi_note] = WWM_LOW_MAP[note_name]
+      end
+    end
+    
+    mapping.freeze
+  end
+
   # Note mappings for Genshin Impact Windsong Lyre
   # Keys: Q-U (highest), A-J (middle), Z-M (lowest)
   GENSHIN_KEYBOARD_MAP = {
@@ -85,13 +166,23 @@ class MidiToMacro
     @midi_file = midi_file
     @options = {
       output_file: options[:output] || 'output_macro.mcr',
-      game: options[:game] || 'genshin',
+      game: options[:game] || 'wwm',
       tempo_multiplier: options[:tempo_multiplier] || 1.0,
       min_note_duration: options[:min_note_duration] || 0.1,
       transpose: options[:transpose] || 0
     }
     @sequence = MIDI::Sequence.new
-    @key_mapping = GENSHIN_KEYBOARD_MAP.dup
+    
+    # Select key mapping based on game
+    case @options[:game].downcase
+    when 'wwm', 'wherewindmeet', 'where winds meet'
+      @key_mapping = WWM_KEYBOARD_MAP.dup
+    when 'genshin', 'genshin impact'
+      @key_mapping = GENSHIN_KEYBOARD_MAP.dup
+    else
+      puts "Warning: Unknown game '#{@options[:game]}', using WWM mapping"
+      @key_mapping = WWM_KEYBOARD_MAP.dup
+    end
   end
 
   def convert
@@ -261,13 +352,43 @@ class MidiToMacro
         when :delay
           file.puts "DELAY : #{cmd[:value_ms]}"
         when :key_press
-          # Key down
-          file.puts "Keyboard : #{cmd[:key]} : KeyDown"
-          # Small delay before key up (matching example pattern)
-          file.puts "DELAY : 2"
-          file.puts "Keyboard : #{cmd[:key]} : KeyUp"
+          key = cmd[:key]
+          
+          # Handle modifier keys (array format: [modifier, base_key])
+          if key.is_a?(Array)
+            modifier, base_key = key
+            modifier_key = modifier_to_key_name(modifier)
+            
+            # Modifier key down
+            file.puts "Keyboard : #{modifier_key} : KeyDown"
+            file.puts "DELAY : 2"
+            # Base key down
+            file.puts "Keyboard : #{base_key} : KeyDown"
+            # Base key up immediately
+            file.puts "Keyboard : #{base_key} : KeyUp"
+            # Modifier key up
+            file.puts "Keyboard : #{modifier_key} : KeyUp"
+          else
+            # Simple key press (no modifier)
+            file.puts "Keyboard : #{key} : KeyDown"
+            file.puts "DELAY : 2"
+            file.puts "Keyboard : #{key} : KeyUp"
+          end
         end
       end
+    end
+  end
+
+  def modifier_to_key_name(modifier)
+    case modifier.upcase
+    when 'SHIFT'
+      'ShiftLeft'
+    when 'CTRL', 'CONTROL'
+      'ControlLeft'
+    when 'ALT'
+      'AltLeft'
+    else
+      modifier
     end
   end
 end
@@ -283,7 +404,7 @@ if __FILE__ == $0
       options[:output] = f
     end
     
-    opts.on("-g", "--game GAME", "Target game (default: genshin)") do |g|
+    opts.on("-g", "--game GAME", "Target game: 'wwm' or 'genshin' (default: wwm)") do |g|
       options[:game] = g
     end
     
