@@ -2,6 +2,10 @@
 
 A Ruby script that converts MIDI files into macro commands for playing musical instruments in games like Genshin Impact and Where Winds Meet.
 
+## Preview
+
+https://github.com/user-attachments/assets/feb3937c-1dbe-4127-9c5a-1d20badd7bd9
+
 ## Features
 
 - ✅ Reads standard MIDI files
