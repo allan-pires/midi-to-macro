@@ -9,6 +9,7 @@ require_relative 'macro_processor'
 class MidiToMacro
   def initialize(midi_file, options = {})
     @midi_file = midi_file
+    @raw_options = options.dup # Store original options before defaults
     @options = build_options(options)
     @sequence = MIDI::Sequence.new
     @key_mapper = KeyMapper.new(@options[:game])
@@ -61,7 +62,7 @@ class MidiToMacro
 
   def build_options(options)
     {
-      output_file: options[:output] || default_output_file,
+      output_file: options[:output] || default_output_file(options),
       game: options[:game] || Config.default_game,
       tempo_multiplier: options[:tempo_multiplier] || Config.default_tempo_multiplier,
       min_note_duration: options[:min_note_duration] || Config.default_min_note_duration,
@@ -69,14 +70,62 @@ class MidiToMacro
     }
   end
 
-  def default_output_file
+  def default_output_file(options = {})
     output_dir = Config.output_directory
     base_name = File.basename(@midi_file, File.extname(@midi_file))
     
+    # Build suffix from non-default parameters
+    suffix_parts = build_filename_suffix(options)
+    suffix = suffix_parts.empty? ? '' : "-#{suffix_parts.join('-')}"
+    
+    filename = "#{base_name}#{suffix}.mcr"
+    
     if output_dir.empty?
-      "#{base_name}.mcr"
+      filename
     else
-      File.join(output_dir, "#{base_name}.mcr")
+      File.join(output_dir, filename)
+    end
+  end
+
+  def build_filename_suffix(options)
+    parts = []
+    
+    # Include transpose if explicitly provided
+    if options.key?(:transpose)
+      transpose_value = options[:transpose]
+      parts << "transpose-#{format_number(transpose_value)}"
+    end
+    
+    # Include tempo multiplier if explicitly provided
+    if options.key?(:tempo_multiplier)
+      tempo_value = options[:tempo_multiplier]
+      parts << "tempo-#{format_number(tempo_value)}"
+    end
+    
+    # Include game if explicitly provided and not default
+    if options.key?(:game) && options[:game].downcase != Config.default_game.downcase
+      parts << "game-#{options[:game].downcase}"
+    end
+    
+    # Include min duration if explicitly provided
+    if options.key?(:min_note_duration)
+      duration_value = options[:min_note_duration]
+      parts << "duration-#{format_number(duration_value)}"
+    end
+    
+    parts
+  end
+
+  def format_number(value)
+    # Format numbers nicely: remove unnecessary decimals, handle negative signs
+    if value.is_a?(Float) && value == value.to_i
+      value.to_i.to_s
+    elsif value.is_a?(Float)
+      value.to_s
+    elsif value < 0
+      value.to_s
+    else
+      value.to_s
     end
   end
 

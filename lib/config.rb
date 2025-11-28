@@ -32,6 +32,10 @@ class Config
     def key_press_delay
       Integer(ENV.fetch('KEY_PRESS_DELAY', '2'))
     end
+
+    def midi_directory
+      ENV.fetch('MIDI_DIRECTORY', '.')
+    end
   end
 end
 

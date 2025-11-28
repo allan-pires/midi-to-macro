@@ -9,6 +9,10 @@ Create a `.env` file in the project root with the following variables:
 # Leave empty to use current directory
 OUTPUT_DIRECTORY=C:/SamplePath/
 
+# Default directory to look for MIDI files (for interactive mode)
+# Use '.' for current directory or full path
+MIDI_DIRECTORY=.
+
 # Default game mapping (wwm or genshin)
 DEFAULT_GAME=wwm
 
